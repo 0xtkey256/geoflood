@@ -71,7 +71,8 @@ def run_locally(script: str, facilities: list[dict], log: Log) -> SandboxResult:
         (d / "run.py").write_text(script, encoding="utf-8")
         (d / "facilities.json").write_text(json.dumps(facilities, ensure_ascii=False), encoding="utf-8")
         log("MOCK: running script in a local subprocess (no isolation!)")
-        p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=240)
+        env = {**os.environ, "MPLCONFIGDIR": os.environ.get("MPLCONFIGDIR", str(d / "mpl"))}
+        p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=240, env=env)
         if p.returncode != 0:
             raise RuntimeError(f"local script failed: {p.stderr[-800:]}")
         result = json.loads((d / "out" / "result.json").read_text(encoding="utf-8"))

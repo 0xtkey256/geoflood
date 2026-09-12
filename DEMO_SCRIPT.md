@@ -1,30 +1,31 @@
-# 2分デモ台本（16:20）
+# 2-minute demo script
 
-## 0:00–0:20 課題
-「水害のとき、本当に困るのは *水に浸かった施設* じゃなく、**浸かってないのに止まる施設** です。
-病院は高台にあっても、給電元の変電所が低地なら停電する。これはラスタ解析だけでは分からない。」
+**[0:00 – Slide 2, "The problem"]**
+"Everyone builds flood maps. But when a flood hits, the facility that hurts most is often the one that is *not* under water. A hospital on high ground still goes dark if its substation sits in the lowlands. That cascade never shows up in raster analysis — you have to walk the relationships. So we built an agent you can just ask."
 
-## 0:20–0:35 実行（入力してEnter、以後は画面を指しながら）
-> 荒川下流で水位が3m上がったら浸水範囲と影響を受ける施設は？
+**[0:20 – switch to the UI, click the first example]**
+"One question: *If the lower Arakawa rises three meters, which facilities are affected?*"
 
-## 0:35–1:30 ログを指しながら（各プラットフォームを **名指し** で言う）
-- **NOSANA タグが光る**「いま Nosana の分散GPU上の LLM が、この質問から GIS コードを書きました」→ 生成コードを1秒だけ開いて見せる
-- **DAYTONA タグ**「そのコードを Daytona の使い捨てサンドボックスで隔離実行しています。LLM が書いた任意コードなので、ローカルでは絶対に走らせたくない。国土地理院の実標高タイルを取りに行って、浸水マスクを計算して、地図を描いて、サンドボックスは消えます」
-- **地図が出る**「赤が浸水施設」
-- **NEO4J タグ**「浸水結果を Neo4j に書き込んで、2ホップのクエリ：*浸水していない → 給電元の変電所 → 浸水* を辿ります」
-- **波及テーブルを指す**「この避難所は水に浸かっていないのに停電する。バックアップ変電所の状態まで出ています」
+**[0:25 – point at the stepper as each stage lights up]**
+"First stage: the language model on **Nosana**'s decentralized GPUs writes the GIS script for this question — the generated code is right here."
+"Second: we pull the facility nodes from **Neo4j**."
+"Third: that LLM-written code runs in a **Daytona** sandbox — it fetches real elevation tiles from the Geospatial Information Authority of Japan, computes the flood mask, renders the map, and the sandbox is destroyed. Arbitrary generated code never touches our machine."
+(map appears) "Red markers are facilities under water — about 100 square kilometers at plus three meters."
 
-## 1:30–1:50 ブリーフィング
-「最後に Nosana の LLM が EOC 向けの日本語ブリーフィングを作ります。」（読み上げない、指すだけ）
+**[1:05 – the cascade card]**
+"Now the part only a graph can answer. We write the scenario back into **Neo4j** and run a two-hop query: facility → powered by → substation → flooded. This shelter is dry — but its substation is under three meters of water, so it loses power. The query even tells us whether the backup substation is flooded too."
 
-## 1:50–2:00 締め
-「Daytona = 安全な任意コード実行、Nosana = 推論、Neo4j = 関係の推論。3つとも *無いと成立しない* 役割で使いました。
-施設データはサンプルですが、実データを Neo4j に入れ替えれば自治体でそのまま使える構成です。」
+**[1:25 – the briefing]**
+"Finally, the model on Nosana turns all of it into a briefing an emergency operations center can read as-is."
 
----
-## 事前チェック（16:00まで）
-- [ ] `python smoke.py` が3つとも OK（ダメなものは `.env` で `USE_<X>=0` → モック表示のまま説明する）
-- [ ] 1回フル実行してキャッシュを温める（Daytona の初回イメージビルド／snapshot）
-- [ ] ブラウザは 1 タブ、ズーム 125%、ログが読める大きさに
-- [ ] Nosana が落ちたら → `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` を入れて `USE_NOSANA=0`（バッジが mock になるので「Nosana は混雑のためフォールバック中」と正直に言う）
-- [ ] 質問例3つはUIのチップからワンクリックで入る
+**[1:35 – Slide 5, "Where we are"]**
+"Honest status: Neo4j is live. Daytona sign-up was blocked from this venue by anomaly detection for our whole team — confirmed with support — so today the same script runs through a local fallback; the integration is thirty lines and goes live by pasting a key. Nosana uses the OpenAI-compatible client, endpoint pending."
+
+**[1:50 – close]**
+"Three platforms, each doing the one thing the others can't: Daytona runs untrusted code safely, Nosana runs the inference, Neo4j reasons over relationships. Swap in a city's real grid data and this runs in an EOC tomorrow. Thank you."
+
+## Pre-flight
+- [ ] `python3 smoke.py` — anything failing → `USE_<X>=0` in `.env`, demo with the mock and say so
+- [ ] Run one full query before the demo (warms the Daytona image / snapshot cache)
+- [ ] One browser tab, zoom 125 %, stepper readable from the back of the room
+- [ ] Say the platform names out loud — judges don't read code
