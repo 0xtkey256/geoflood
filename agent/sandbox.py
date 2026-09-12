@@ -71,14 +71,37 @@ def run_locally(script: str, facilities: list[dict], log: Log) -> SandboxResult:
         (d / "run.py").write_text(script, encoding="utf-8")
         (d / "facilities.json").write_text(json.dumps(facilities, ensure_ascii=False), encoding="utf-8")
         log("MOCK: running script in a local subprocess (no isolation!)")
-        env = {**os.environ, "MPLCONFIGDIR": os.environ.get("MPLCONFIGDIR", str(d / "mpl"))}
-        p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=240, env=env)
-        if p.returncode != 0:
-            raise RuntimeError(f"local script failed: {p.stderr[-800:]}")
+        # child must see the same packages as the parent (serverless runtimes put deps outside site-packages)
+        env = {**os.environ, "MPLCONFIGDIR": os.environ.get("MPLCONFIGDIR", str(d / "mpl")),
+               "PYTHONPATH": os.pathsep.join(p_ for p_ in sys.path if p_)}
+        stdout = ""
+        try:
+            p = subprocess.run([sys.executable, "run.py"], cwd=d, capture_output=True, text=True, timeout=240, env=env)
+            stdout = p.stdout
+            if p.returncode != 0:
+                raise RuntimeError(p.stderr[-800:])
+        except Exception as e:  # noqa: BLE001 — e.g. no usable child interpreter on serverless: run in-process
+            log(f"subprocess failed ({str(e).strip().splitlines()[-1] if str(e).strip() else e}) -> running in-process")
+            _run_in_process(d)
         result = json.loads((d / "out" / "result.json").read_text(encoding="utf-8"))
         map_png = (d / "out" / "map.png").read_bytes()
-        return SandboxResult(provider="local-mock", stdout=p.stdout, exit_code=0,
+        return SandboxResult(provider="local-mock", stdout=stdout, exit_code=0,
                              result=result, map_png=map_png, sandbox_id="local")
+
+
+def _run_in_process(d: Path) -> None:
+    import runpy
+
+    os.environ.setdefault("MPLCONFIGDIR", str(d / "mpl"))
+    cwd = os.getcwd()
+    sys.path.insert(0, str(d))
+    sys.modules.pop("geo_helpers", None)  # always load the copy in this run dir
+    try:
+        os.chdir(d)
+        runpy.run_path(str(d / "run.py"), run_name="__main__")
+    finally:
+        os.chdir(cwd)
+        sys.path.remove(str(d))
 
 
 def run(script: str, facilities: list[dict], log: Log) -> SandboxResult:
