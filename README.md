@@ -44,21 +44,20 @@ Without it, sandboxes are created from a declarative `Image.debian_slim().pip_in
 
 ## Deploy on Vercel
 
-The repo ships `vercel.json` + `api/index.py`. Import the GitHub repo at vercel.com → add the `.env` variables under
-*Settings → Environment Variables* → Deploy. Or from the CLI:
+Zero-config: Vercel detects the FastAPI app in `app.py` and `requirements.txt`. Import the GitHub repo at vercel.com →
+add the `.env` variables under *Settings → Environment Variables* → Deploy. Or from the CLI:
 
 ```bash
 npm i -g vercel && vercel login && vercel --prod
 ```
 
-Notes: the local-mock sandbox runs inside the Vercel function (numpy/matplotlib are in `requirements.txt`), Daytona/Neo4j/Nosana
-are called over the network, and the function timeout is set to 60 s in `vercel.json`.
+The local-mock sandbox runs inside the function (numpy/matplotlib are in `requirements.txt`); Daytona, Neo4j and Nosana
+are reached over the network. Do not add a `vercel.json` rewrite to `/api/...` — it breaks the auto-detected routing.
 
 ## Layout
 
 ```
 app.py                     FastAPI + SSE endpoint
-api/index.py               Vercel entry point (re-exports the FastAPI app)
 static/index.html          Demo UI: per-platform pipeline stepper, map, facility table, cascade card, code / Cypher / live log
 agent/pipeline.py          Orchestration — yields events for the UI
 agent/llm.py               Nosana (OpenAI-compatible) → OpenAI → Anthropic → canned script, in that order
